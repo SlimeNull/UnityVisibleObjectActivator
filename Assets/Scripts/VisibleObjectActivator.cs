@@ -16,8 +16,8 @@ public class VisibleObjectActivator : MonoBehaviour
     [SerializeField]
     private bool _checkMovement;
 
-    private List<GameObject>[,] _gameObjects;
-    private List<GameObject> _sharedGameObjectsToRemove;
+    private List<Renderer>[,] _gameObjectRenderers;
+    private List<Renderer> _sharedGameObjectRenderersToRemove;
 
     private float Size
     {
@@ -50,10 +50,16 @@ public class VisibleObjectActivator : MonoBehaviour
         for (int i = 0; i < childCount; i++)
         {
             var child = transform.GetChild(i).gameObject;
+            var renderer = child.GetComponent<Renderer>();
 
-            if (CanAddGameObject(child))
+            if (renderer == null)
             {
-                AddGameObject(child);
+                continue;
+            }
+
+            if (CanAddRenderer(renderer))
+            {
+                AddRenderer(renderer);
             }
         }
     }
@@ -63,11 +69,11 @@ public class VisibleObjectActivator : MonoBehaviour
     /// </summary>
     private void Update()
     {
-        if (_gameObjects is not null)
+        if (_gameObjectRenderers is not null)
         {
             var selfWorldX = transform.position.x;
             var selfWorldZ = transform.position.z;
-            var containerArraySize = _gameObjects.GetLength(0);
+            var containerArraySize = _gameObjectRenderers.GetLength(0);
             var blockSize = _size / containerArraySize;
 
             SetAreaActiveState(selfWorldX, selfWorldZ, _size / 2, blockSize, 0, containerArraySize, 0, containerArraySize);
@@ -103,13 +109,13 @@ public class VisibleObjectActivator : MonoBehaviour
             arraySize *= 2;
         }
 
-        _gameObjects = new List<GameObject>[arraySize, arraySize];
+        _gameObjectRenderers = new List<Renderer>[arraySize, arraySize];
 
         for (int i = 0; i < arraySize; i++)
         {
             for (int j = 0; j < arraySize; j++)
             {
-                _gameObjects[i, j] = new List<GameObject>();
+                _gameObjectRenderers[i, j] = new List<Renderer>();
             }
         }
     }
@@ -121,27 +127,27 @@ public class VisibleObjectActivator : MonoBehaviour
     /// <param name="depth"></param>
     private void ChangeContainer(float size, int depth)
     {
-        if (_gameObjects is null)
+        if (_gameObjectRenderers is null)
         {
             InitContainer(size, depth);
             return;
         }
 
-        var arraySize = _gameObjects.GetLength(0);
-        var allGameObjects = new List<GameObject>();
+        var arraySize = _gameObjectRenderers.GetLength(0);
+        var allGameObjectRenderers = new List<Renderer>();
 
         for (int i = 0; i < arraySize; i++)
         {
             for (int j = 0; j < arraySize; j++)
             {
-                allGameObjects.AddRange(_gameObjects[i, j]);
+                allGameObjectRenderers.AddRange(_gameObjectRenderers[i, j]);
             }
         }
 
         InitContainer(size, depth);
-        foreach (var gameObject in allGameObjects)
+        foreach (var renderer in allGameObjectRenderers)
         {
-            AddGameObject(gameObject);
+            AddRenderer(renderer);
         }
     }
 
@@ -203,9 +209,9 @@ public class VisibleObjectActivator : MonoBehaviour
         int iStart, int iEnd,
         int jStart, int jEnd)
     {
-        if (_sharedGameObjectsToRemove is null)
+        if (_sharedGameObjectRenderersToRemove is null)
         {
-            _sharedGameObjectsToRemove = new();
+            _sharedGameObjectRenderersToRemove = new();
         }
 
         Vector2 point00 = new Vector2(selfWorldX + blockSize * iStart - halfSize, selfWorldZ + blockSize * jStart - halfSize);
@@ -224,26 +230,26 @@ public class VisibleObjectActivator : MonoBehaviour
                 {
                     for (int z = jStart; z < jEnd; z++)
                     {
-                        var currentBlockGameObjects = _gameObjects[i, z];
+                        var currentBlockGameObjects = _gameObjectRenderers[i, z];
 
-                        foreach (var gameObject in currentBlockGameObjects)
+                        foreach (var renderer in currentBlockGameObjects)
                         {
-                            if (gameObject != null)
+                            if (renderer != null)
                             {
-                                gameObject.SetActive(true);
+                                renderer.enabled = true;
                             }
                             else
                             {
-                                _sharedGameObjectsToRemove.Add(gameObject);
+                                _sharedGameObjectRenderersToRemove.Add(renderer);
                             }
                         }
 
-                        foreach (var gameObject in _sharedGameObjectsToRemove)
+                        foreach (var gameObject in _sharedGameObjectRenderersToRemove)
                         {
                             currentBlockGameObjects.Remove(gameObject);
                         }
 
-                        _sharedGameObjectsToRemove.Clear();
+                        _sharedGameObjectRenderersToRemove.Clear();
                     }
                 }
             }
@@ -266,26 +272,26 @@ public class VisibleObjectActivator : MonoBehaviour
             {
                 for (int z = jStart; z < jEnd; z++)
                 {
-                    var currentBlockGameObjects = _gameObjects[i, z];
+                    var currentBlockGameObjectRenderers = _gameObjectRenderers[i, z];
 
-                    foreach (var gameObject in currentBlockGameObjects)
+                    foreach (var renderer in currentBlockGameObjectRenderers)
                     {
-                        if (gameObject != null)
+                        if (renderer != null)
                         {
-                            gameObject.SetActive(false);
+                            renderer.enabled = false;
                         }
                         else
                         {
-                            _sharedGameObjectsToRemove.Add(gameObject);
+                            _sharedGameObjectRenderersToRemove.Add(renderer);
                         }
                     }
 
-                    foreach (var gameObject in _sharedGameObjectsToRemove)
+                    foreach (var gameObject in _sharedGameObjectRenderersToRemove)
                     {
-                        currentBlockGameObjects.Remove(gameObject);
+                        currentBlockGameObjectRenderers.Remove(gameObject);
                     }
 
-                    _sharedGameObjectsToRemove.Clear();
+                    _sharedGameObjectRenderersToRemove.Clear();
                 }
             }
         }
@@ -293,37 +299,37 @@ public class VisibleObjectActivator : MonoBehaviour
 
     private void CheckObjectsMovement(int containerArraySize)
     {
-        if (_sharedGameObjectsToRemove is null)
+        if (_sharedGameObjectRenderersToRemove is null)
         {
-            _sharedGameObjectsToRemove = new();
+            _sharedGameObjectRenderersToRemove = new();
         }
 
         for (int i = 0; i < containerArraySize; i++)
         {
             for (int j = 0; j < containerArraySize; j++)
             {
-                var currentBlockGameObjects = _gameObjects[i, j];
+                var currentBlockGameObjects = _gameObjectRenderers[i, j];
 
-                _sharedGameObjectsToRemove.Clear();
-                foreach (var gameObject in currentBlockGameObjects)
-                { 
-                    if (!CalculateBestBlock(gameObject, out var newI, out var newJ))
+                _sharedGameObjectRenderersToRemove.Clear();
+                foreach (var renderer in currentBlockGameObjects)
+                {
+                    if (!CalculateBestBlock(renderer, out var newI, out var newJ))
                     {
-                        _sharedGameObjectsToRemove.Add(gameObject);
+                        _sharedGameObjectRenderersToRemove.Add(renderer);
                         continue;
                     }
 
                     if (newI != i ||
                         newJ != j)
                     {
-                        _sharedGameObjectsToRemove.Add(gameObject);
-                        AddGameObject(gameObject);
+                        _sharedGameObjectRenderersToRemove.Add(renderer);
+                        AddRenderer(renderer);
                     }
                 }
 
-                foreach (var gameObject in _sharedGameObjectsToRemove)
+                foreach (var renderer in _sharedGameObjectRenderersToRemove)
                 {
-                    currentBlockGameObjects.Remove(gameObject);
+                    currentBlockGameObjects.Remove(renderer);
                 }
             }
         }
@@ -371,24 +377,32 @@ public class VisibleObjectActivator : MonoBehaviour
             var centerPoint = new Vector3(selfWorldX + blockSize * (((float)iEnd + iStart) / 2) - halfSize, selfWorldY, selfWorldZ + blockSize * (((float)jEnd + jStart) / 2) - halfSize);
             var size = new Vector3(blockSize * (iEnd - iStart), 0, blockSize * (jEnd - jStart));
 
-            Gizmos.color = Color.red;
+            if (enabled)
+            {
+                Gizmos.color = Color.red;
+            }
+            else
+            {
+                Gizmos.color = Color.yellow;
+            }
+
             Gizmos.DrawWireCube(centerPoint, size);
         }
     }
 
-    public bool CalculateBestBlock(GameObject gameObject, out int i, out int j)
+    public bool CalculateBestBlock(Renderer renderer, out int i, out int j)
     {
-        if (_gameObjects is null)
+        if (_gameObjectRenderers is null)
         {
             i = 0;
             j = 0;
             return false;
         }
 
-        var relativePosition = gameObject.transform.position - transform.position;
+        var relativePosition = renderer.transform.position - transform.position;
 
         var halfSize = _size / 2;
-        var containerArraySize = _gameObjects.GetLength(0);
+        var containerArraySize = _gameObjectRenderers.GetLength(0);
         var blockSize = _size / containerArraySize;
         i = (int)((relativePosition.x + halfSize) / blockSize);
         j = (int)((relativePosition.z + halfSize) / blockSize);
@@ -402,19 +416,19 @@ public class VisibleObjectActivator : MonoBehaviour
         return true;
     }
 
-    public bool CanAddGameObject(GameObject gameObject)
+    public bool CanAddRenderer(Renderer renderer)
     {
-        return CalculateBestBlock(gameObject, out _, out _);
+        return CalculateBestBlock(renderer, out _, out _);
     }
 
-    public void AddGameObject(GameObject gameObject)
+    public void AddRenderer(Renderer gameObjectRenderer)
     {
-        if (!CalculateBestBlock(gameObject, out var i, out var j))
+        if (!CalculateBestBlock(gameObjectRenderer, out var i, out var j))
         {
             throw new System.InvalidOperationException();
         }
 
-        _gameObjects[i, j].Add(gameObject);
+        _gameObjectRenderers[i, j].Add(gameObjectRenderer);
     }
 
 
